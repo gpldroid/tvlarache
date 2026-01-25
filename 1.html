@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LARACHE TV | منصة البث الاحترافية</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    
+</head>
+<body>
+
+    <!-- Loader -->
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <!-- App Container -->
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <button class="sidebar-close" onclick="closeSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-play-circle"></i> 
+                    LARACHE<span>TV</span>
+                </div>
+            </div>
+
+            <ul class="nav-menu">
+                <!-- Live TV with dropdown -->
+                <li class="nav-item has-dropdown">
+                    <a class="nav-link active" onclick="toggleLiveDropdown(event)">
+                        <i class="fas fa-futbol"></i> 
+                        <span class="nav-text">البث المباشر</span>
+                        <i class="fas fa-chevron-down dropdown-icon" style="margin-right: auto; font-size: 12px;"></i>
+                    </a>
+                    <ul class="live-dropdown" id="liveDropdown">
+                        <!-- Countries will be loaded dynamically -->
+                        <li><a class="country-dropdown-item" onclick="loadAllChannels(event)">الكل</a></li>
+                    </ul>
+                </li>
+                
+                <li class="nav-item" style="margin-top: 20px;">
+                    <a class="nav-link" onclick="showFavorites()">
+                        <i class="fas fa-star" style="color: #ffca28;"></i> 
+                        <span class="nav-text">المفضلة</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="openUploadModal()">
+                        <i class="fas fa-upload"></i> 
+                        <span class="nav-text">رفع ملف M3U</span>
+                    </a>
+                </li>
+            </ul>
+            
+            <!-- Theme Toggle -->
+            <div class="theme-toggle-container">
+                <div class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+                    <span id="themeText">وضع النهار</span>
+                    <div class="theme-icon">
+                        <i class="fas fa-sun" id="themeIcon"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <p>
+                    LARACHE TV &copy; 2023<br>
+                    <small>عماد الدين لمراني جميع الحقوق محفوظة</small>
+                </p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <div class="main-header">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--text-main);">
+                        LARACHE TV
+                    </h1>
+                    <span class="live-badge" id="modeBadge">
+                        <i class="fas fa-circle"></i>
+                        LIVE
+                    </span>
+                </div>
+                
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="ابحث عن قناة...">
+                        <button class="search-clear" id="searchClear">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Player -->
+            <div class="video-wrapper" id="videoWrapper">
+                <video id="player" playsinline controls 
+                       poster="https://images.unsplash.com/photo-1550745165-9bc0b252726f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80">
+                    <source src="" type="application/x-mpegURL" />
+                </video>
+            </div>
+
+            <!-- Current Channel Info -->
+            <div class="current-channel-info" id="currentInfo">
+                <div class="channel-meta">
+                    <h1 id="channelTitle">اختر قناة للمشاهدة</h1>
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <span class="live-badge" id="contentTypeBadge">
+                            <i class="fas fa-circle"></i>
+                            البث المباشر
+                        </span>
+                        <span id="channelQuality" style="color: var(--text-muted); font-size: 14px; display: none;">
+                            جودة: <span id="qualityValue">HD</span>
+                        </span>
+                    </div>
+                </div>
+                <button class="fav-icon" id="currentChannelFavorite" onclick="toggleCurrentFavorite()">
+                    <i class="far fa-star"></i>
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div id="contentArea">
+                <!-- Live TV Mode (Always Active now) -->
+                <div id="liveModeContent">
+                    <!-- Country Packages Dropdown -->
+                    <div class="country-dropdown" id="countryDropdown">
+                        <button class="country-dropdown-btn" id="countryDropdownBtn" onclick="toggleCountryDropdown()">
+                            <span id="selectedCountry">اختر الدولة</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="country-dropdown-content" id="countryDropdownContent">
+                            <!-- Countries will be loaded dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Categories -->
+                    <div class="category-buttons" id="categoryButtons"></div>
+                    
+                    <!-- Toolbar -->
+                    <div class="toolbar">
+                        <h2 id="sectionTitle" style="color: var(--text-main); font-size: 1.5rem; font-weight: 700;">
+                            القنوات الرياضية
+                        </h2>
+                    </div>
+
+                    <!-- Content Grid -->
+                    <div id="contentGrid">
+                        <div class="channel-grid" id="grid">
+                            <div class="loading-state">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>جاري تحميل القنوات...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mobile Menu Toggle -->
+            <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleSidebar()">
+                <i class="fas fa-bars" id="menuIcon"></i>
+            </button>
+        </main>
+    </div>
+
+    <!-- Enhanced Upload Modal -->
+    <div id="uploadModal" class="modal-overlay" onclick="closeModalOnOverlay(event, 'uploadModal')">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-upload"></i> رفع ملف M3U مخصص</h3>
+                <button class="modal-close" onclick="closeModal('uploadModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-options">
+                    <div class="upload-option active" onclick="selectUploadOption('url')" id="urlOption">
+                        <div class="upload-option-header">
+                            <div class="upload-option-icon">
+                                <i class="fas fa-link"></i>
+                            </div>
+                            <div>
+                                <div class="upload-option-title">من رابط URL</div>
+                                <div class="upload-option-description">تحميل قائمة M3U من رابط مباشر</div>
+                            </div>
+                        </div>
+                        <div class="url-input-group show" id="urlInputGroup">
+                            <input type="url" id="m3uUrl" placeholder="https://example.com/playlist.m3u" 
+                                   style="width: 100%; padding: 15px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface); color: var(--text-main); font-family: 'Tajawal';">
+                            <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-top: 10px;">
+                                <i class="fas fa-info-circle"></i> يرجى إدخال رابط ملف M3U صالح. يمكنك العثور على قوائم مجانية عبر الإنترنت.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="upload-option" onclick="selectUploadOption('file')" id="fileOption">
+                        <div class="upload-option-header">
+                            <div class="upload-option-icon">
+                                <i class="fas fa-file-upload"></i>
+                            </div>
+                            <div>
+                                <div class="upload-option-title">من ملف محلي</div>
+                                <div class="upload-option-description">رفع ملف M3U من جهازك</div>
+                            </div>
+                        </div>
+                        <div class="file-input-group" id="fileInputGroup">
+                            <label for="fileInput" class="file-input-label">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <span>انقر لاختيار ملف</span>
+                                <small>يدعم ملفات M3U (الحد الأقصى: 10MB)</small>
+                            </label>
+                            <input type="file" id="fileInput" accept=".m3u,.m3u8">
+                            <div class="file-preview" id="filePreview">
+                                <div class="file-name" id="fileName"></div>
+                                <div class="file-size" id="fileSize"></div>
+                            </div>
+                            <div class="upload-progress" id="uploadProgress">
+                                <div class="progress-bar" id="progressBar"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('uploadModal')">إلغاء</button>
+                <button class="btn btn-primary" onclick="loadCustomPlaylist()" id="uploadBtn">تحميل القنوات</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+
+  <<script src="js/main.js"></script>
+</body>
+</html>
