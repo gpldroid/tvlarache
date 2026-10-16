@@ -237,6 +237,7 @@
         let player;
         let hls;
         let currentCategory = 'Sports';
+        let showingFavorites = false;
         let currentCountry = 'all';
         let isSidebarOpen = false;
         let isLiveDropdownOpen = false;
@@ -640,6 +641,7 @@
         }
 
         async function loadCountryChannels(countryCode) {
+            showingFavorites = false;
             currentCountry = countryCode;
             currentCategory = 'Sports';
             currentPage = 0;
@@ -806,6 +808,15 @@
         }
 
         function filterChannelsBySearch(searchTerm) {
+            if (showingFavorites) {
+                filteredChannels = favorites.map(saved => {
+                    const channel = allChannels.find(item => item.id === saved.id);
+                    return channel ? { ...channel, isFavorite: true } : { ...saved, category: 'Favorites', country: '', quality: 'SD', isFavorite: true };
+                }).filter(channel => !searchTerm || String(channel.name || '').toLowerCase().includes(searchTerm));
+                currentPage = 0;
+                renderChannels();
+                return;
+            }
             if (!searchTerm) {
                 if (currentCategory === 'Sports') {
                     filteredChannels = [...allChannels];
@@ -968,43 +979,33 @@
 
         // --- Favorites Management ---
         function toggleFavorite(event, itemId, type) {
-            event.stopPropagation();
-            
-            let item = allChannels.find(ch => ch.id === itemId);
-            
-            if (!item) return;
-            
-            const index = favorites.findIndex(f => f.id === itemId);
-            
+            if (event) event.stopPropagation();
+            const item = allChannels.find(channel => channel.id === itemId);
+            const index = favorites.findIndex(favorite => favorite.id === itemId);
+            if (!item && index === -1) return;
+
             if (index === -1) {
-                // Add to favorites
                 favorites.push({
-                    id: item.id,
-                    name: item.name,
-                    logo: item.logo,
-                    url: item.url,
-                    type: 'live',
-                    addedAt: Date.now()
+                    id: item.id, name: item.name, logo: item.logo, url: item.url,
+                    type: 'live', addedAt: Date.now()
                 });
                 item.isFavorite = true;
                 showNotification('تمت إضافة إلى المفضلة');
             } else {
-                // Remove from favorites
                 favorites.splice(index, 1);
-                item.isFavorite = false;
+                if (item) item.isFavorite = false;
                 showNotification('تمت إزالة من المفضلة');
             }
-            
-            // Update icon
-            const icon = event.target;
-            icon.classList.toggle('active', item.isFavorite);
-            
-            // Save to localStorage
+
             try { localStorage.setItem('larachetv_favorites', JSON.stringify(favorites)); }
             catch (error) { console.warn('تعذر حفظ المفضلة محلياً:', error); }
-            
-            // Update current favorite button if needed
-            updateCurrentFavoriteButton();
+
+            if (showingFavorites) {
+                showFavorites();
+            } else {
+                if (event && event.target && event.target.classList) event.target.classList.toggle('active', Boolean(item && item.isFavorite));
+                updateCurrentFavoriteButton();
+            }
         }
 
         function toggleCurrentFavorite() {
@@ -1072,6 +1073,7 @@
         }
 
         function showFavorites() {
+            showingFavorites = true;
             currentCategory = 'Favorites';
             currentPage = 0;
             document.getElementById('sectionTitle').textContent = 'القنوات المفضلة';
@@ -1079,6 +1081,8 @@
                 const channel = allChannels.find(item => item.id === saved.id);
                 return channel ? { ...channel, isFavorite: true } : { ...saved, category: 'Favorites', country: '', quality: 'SD', isFavorite: true };
             });
+            const term = document.getElementById('searchInput')?.value.trim().toLowerCase();
+            if (term) filteredChannels = filteredChannels.filter(channel => String(channel.name || '').toLowerCase().includes(term));
             renderChannels();
             if (window.innerWidth <= 900 && isSidebarOpen) closeSidebar();
         }
