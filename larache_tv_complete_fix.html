@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LARACHE TV | تطبيق البث المباشر</title>
+
+    <!-- Google Fonts & Font Awesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Native App Styles & 5 Built-in Themes -->
+    <style>
+        /* Base Reset & Lock Scroll for Native Feel */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        html, body {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Tajawal', sans-serif;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .scrollable {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        /* 1. VisionOS Glass Theme */
+        body.theme-glass {
+            --bg-app: radial-gradient(circle at 10% 20%, #1a103c 0%, #0b0f19 50%, #020617 100%);
+            --bg-surface: rgba(255, 255, 255, 0.08);
+            --bg-card: rgba(255, 255, 255, 0.05);
+            --border-color: rgba(255, 255, 255, 0.12);
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --accent: #6366f1;
+            --backdrop: blur(20px) saturate(180%);
+            --radius: 18px;
+        }
+
+        /* 2. Cyberpunk Neon Theme */
+        body.theme-cyber {
+            --bg-app: #08080c;
+            --bg-surface: #121118;
+            --bg-card: #181722;
+            --border-color: #2e2a41;
+            --text-main: #00ffcc;
+            --text-muted: #a097c4;
+            --accent: #ff007f;
+            --backdrop: none;
+            --radius: 8px;
+        }
+        body.theme-cyber .channel-card:hover {
+            border-color: #00ffcc;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+        }
+
+        /* 3. Netflix Cinema Theme */
+        body.theme-netflix {
+            --bg-app: #141414;
+            --bg-surface: #181818;
+            --bg-card: #222222;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-muted: #808080;
+            --accent: #e50914;
+            --backdrop: none;
+            --radius: 6px;
+        }
+        body.theme-netflix .channel-card:hover {
+            transform: scale(1.06);
+            z-index: 10;
+        }
+
+        /* 4. Material You (Android) */
+        body.theme-material {
+            --bg-app: #1c1b1f;
+            --bg-surface: #2b292f;
+            --bg-card: #36343b;
+            --border-color: transparent;
+            --text-main: #e6e1e5;
+            --text-muted: #cac4d0;
+            --accent: #d0bcff;
+            --backdrop: none;
+            --radius: 28px;
+        }
+
+        /* 5. OLED Dark Theme */
+        body.theme-oled {
+            --bg-app: #000000;
+            --bg-surface: #0a0a0a;
+            --bg-card: #121212;
+            --border-color: #222222;
+            --text-main: #ffffff;
+            --text-muted: #666666;
+            --accent: #3b82f6;
+            --backdrop: none;
+            --radius: 12px;
+        }
+
+        /* Applying CSS variables */
+        body {
+            background: var(--bg-app);
+            color: var(--text-main);
+        }
+        .app-surface {
+            background: var(--bg-surface);
+            backdrop-filter: var(--backdrop);
+            -webkit-backdrop-filter: var(--backdrop);
+            border: 1px solid var(--border-color);
+        }
+        .channel-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            transition: all 0.2s ease;
+        }
+
+        /* Live Indicator */
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="theme-glass">
+
+    <div class="flex h-screen w-screen overflow-hidden">
+        
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="w-64 app-surface flex-col justify-between p-4 hidden md:flex z-20 transition-all">
+            <div>
+                <!-- App Logo -->
+                <div class="flex items-center justify-between px-2 py-4 border-b border-white/10">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-play-circle text-2xl text-indigo-500"></i>
+                        <span class="text-xl font-extrabold tracking-wider">LARACHE<span class="text-indigo-400">TV</span></span>
+                    </div>
+                    <button onclick="toggleMobileSidebar()" class="md:hidden text-gray-400 hover:text-white">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Navigation Links -->
+                <nav class="mt-6 space-y-2">
+                    <button onclick="filterCategory('all')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition text-right">
+                        <i class="fas fa-border-all text-indigo-400"></i>
+                        <span>جميع القنوات</span>
+                    </button>
+                    <button onclick="filterCategory('sports')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition text-right">
+                        <i class="fas fa-futbol text-emerald-400"></i>
+                        <span>القنوات الرياضية</span>
+                    </button>
+                    <button onclick="filterCategory('news')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition text-right">
+                        <i class="fas fa-newspaper text-amber-400"></i>
+                        <span>الأخبار</span>
+                    </button>
+                    <button onclick="showFavorites()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition text-right">
+                        <i class="fas fa-star text-yellow-400"></i>
+                        <span>المفضلة</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Custom Upload Button -->
+            <button onclick="openModal()" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center justify-center gap-2 transition shadow-lg mt-4">
+                <i class="fas fa-upload"></i>
+                <span>رفع ملف M3U</span>
+            </button>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden scrollable">
+            
+            <!-- Header Bar -->
+            <header class="app-surface p-4 flex flex-wrap items-center justify-between gap-4 z-10 sticky top-0">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleMobileSidebar()" class="md:hidden text-xl p-2 rounded-lg hover:bg-white/10">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="text-xl font-bold flex items-center gap-2">
+                        LARACHE TV
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1.5">
+                            <span class="live-dot"></span> مباشر
+                        </span>
+                    </h1>
+                </div>
+
+                <!-- Live Theme Switcher -->
+                <div class="flex items-center gap-2 bg-black/30 p-1.5 rounded-2xl border border-white/10">
+                    <span class="text-xs px-2 text-gray-400 hidden sm:inline"><i class="fas fa-palette"></i> اختر المظهر:</span>
+                    <select onchange="switchTheme(this.value)" class="bg-transparent text-xs font-semibold px-2 py-1 outline-none cursor-pointer rounded-lg text-white">
+                        <option value="theme-glass" class="bg-gray-900 text-white"> VisionOS Glass</option>
+                        <option value="theme-cyber" class="bg-gray-900 text-white"> Cyberpunk Neon</option>
+                        <option value="theme-netflix" class="bg-gray-900 text-white"> Netflix Cinema</option>
+                        <option value="theme-material" class="bg-gray-900 text-white"> Material You</option>
+                        <option value="theme-oled" class="bg-gray-900 text-white"> Pure OLED Dark</option>
+                    </select>
+                </div>
+
+                <!-- Instant Search Field -->
+                <div class="relative w-full sm:w-64">
+                    <i class="fas fa-search absolute right-3 top-3 text-gray-400 text-xs"></i>
+                    <input type="text" id="searchInput" oninput="handleSearch()" placeholder="ابحث عن قناة..." 
+                           class="w-full bg-black/20 border border-white/10 rounded-xl py-2 pr-9 pl-4 text-sm outline-none focus:border-indigo-500 transition">
+                </div>
+            </header>
+
+            <!-- Video Player Display -->
+            <section class="p-4 flex-shrink-0">
+                <div class="max-w-4xl mx-auto rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10">
+                    <video id="player" controls playsinline class="w-full aspect-video bg-black">
+                        <source id="videoSource" src="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" type="application/x-mpegURL" />
+                        متصفحك لا يدعم تشغيل الفيديو.
+                    </video>
+                    <div class="p-3 bg-white/5 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-tv text-indigo-400"></i>
+                            <span id="currentChannelName" class="font-bold text-sm">قناة المكس الاختبارية (Mux Live Stream)</span>
+                        </div>
+                        <button onclick="toggleFavoriteCurrent()" id="favBtn" class="text-gray-400 hover:text-yellow-400 text-lg transition">
+                            <i class="far fa-star"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Channels Dynamic Grid Section -->
+            <section class="flex-1 p-4">
+                <h2 id="sectionTitle" class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <i class="fas fa-list text-indigo-400"></i> قائمة القنوات المتاحة
+                </h2>
+                
+                <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 pb-12">
+                    <!-- Dynamic rendering via JS -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Upload M3U Modal -->
+    <div id="uploadModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="app-surface max-w-md w-full rounded-2xl p-6 relative">
+            <button onclick="closeModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i class="fas fa-file-upload text-indigo-400"></i> إضافة قائمة M3U جديدة
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-gray-400 mb-1 block">رابط M3U URL:</label>
+                    <input type="url" id="m3uUrlInput" placeholder="https://example.com/playlist.m3u" 
+                           class="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm outline-none focus:border-indigo-500">
+                </div>
+                <div class="text-center text-xs text-gray-500">- أو -</div>
+                <div>
+                    <label class="text-xs text-gray-400 mb-1 block">اختيار ملف من الجهاز:</label>
+                    <input type="file" id="m3uFileInput" accept=".m3u,.m3u8" 
+                           class="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer">
+                </div>
+                <button onclick="loadM3U()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold transition mt-2">
+                    تحميل القنوات
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample channels data
+        const defaultChannels = [
+            { id: 1, name: "البث الرئيسي Mux Live", category: "sports", logo: "⚽", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+            { id: 2, name: "قناة الأخبار العالمية", category: "news", logo: "📰", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+            { id: 3, name: "التلفزة الرياضية 1", category: "sports", logo: "🏆", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+            { id: 4, name: "القناة الوثائقية", category: "news", logo: "🌍", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+            { id: 5, name: "لاراش TV ترفيه", category: "all", logo: "🎬", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+            { id: 6, name: "سينما مباشر HD", category: "all", logo: "🍿", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" }
+        ];
+
+        let currentChannels = [...defaultChannels];
+        let favorites = JSON.parse(localStorage.getItem('fav_channels') || '[]');
+        let activeChannel = defaultChannels[0];
+
+        // Safe Load Init
+        window.addEventListener('DOMContentLoaded', () => {
+            renderChannels(currentChannels);
+        });
+
+        // Dynamic Channel Card Generator
+        function renderChannels(channels) {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+
+            if (channels.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400">لا توجد قنوات مطابقة</div>`;
+                return;
+            }
+
+            channels.forEach(ch => {
+                const isFav = favorites.includes(ch.id);
+                const card = document.createElement('div');
+                card.className = 'channel-card p-4 cursor-pointer hover:border-indigo-500 flex flex-col items-center justify-center gap-2 text-center group relative';
+                card.onclick = () => playChannel(ch);
+                
+                card.innerHTML = `
+                    <button onclick="event.stopPropagation(); toggleFavorite(${ch.id})" class="absolute top-2 left-2 text-xs ${isFav ? 'text-yellow-400' : 'text-gray-500'} hover:text-yellow-400 p-1">
+                        <i class="${isFav ? 'fas' : 'far'} fa-star"></i>
+                    </button>
+                    <div class="text-3xl my-2 transform group-hover:scale-110 transition">${ch.logo}</div>
+                    <div class="font-bold text-xs truncate w-full">${ch.name}</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Play Selected Stream
+        function playChannel(ch) {
+            activeChannel = ch;
+            document.getElementById('currentChannelName').innerText = ch.name;
+            const video = document.getElementById('player');
+            const source = document.getElementById('videoSource');
+
+            source.src = ch.url;
+            video.load();
+            video.play().catch(() => {});
+            updateFavBtn();
+        }
+
+        // Dynamic Switch Theme Function
+        function switchTheme(themeName) {
+            document.body.className = themeName;
+        }
+
+        // Toggle Responsive Sidebar Menu
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('fixed');
+            sidebar.classList.toggle('inset-0');
+            sidebar.classList.toggle('w-full');
+        }
+
+        // Filter Categories
+        function filterCategory(cat) {
+            if (cat === 'all') currentChannels = [...defaultChannels];
+            else currentChannels = defaultChannels.filter(c => c.category === cat);
+            renderChannels(currentChannels);
+        }
+
+        // Favorites Storage Handlers
+        function showFavorites() {
+            currentChannels = defaultChannels.filter(c => favorites.includes(c.id));
+            renderChannels(currentChannels);
+        }
+
+        function toggleFavorite(id) {
+            if (favorites.includes(id)) {
+                favorites = favorites.filter(fId => fId !== id);
+            } else {
+                favorites.push(id);
+            }
+            localStorage.setItem('fav_channels', JSON.stringify(favorites));
+            renderChannels(currentChannels);
+            updateFavBtn();
+        }
+
+        function toggleFavoriteCurrent() {
+            if (activeChannel) toggleFavorite(activeChannel.id);
+        }
+
+        function updateFavBtn() {
+            const isFav = favorites.includes(activeChannel.id);
+            const favBtn = document.getElementById('favBtn');
+            favBtn.className = isFav ? 'text-yellow-400 text-lg transition' : 'text-gray-400 hover:text-yellow-400 text-lg transition';
+            favBtn.innerHTML = `<i class="${isFav ? 'fas' : 'far'} fa-star"></i>`;
+        }
+
+        // Search Filter
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = defaultChannels.filter(c => c.name.toLowerCase().includes(query));
+            renderChannels(filtered);
+        }
+
+        // Modal Open/Close Controls
+        function openModal() {
+            document.getElementById('uploadModal').classList.remove('hidden');
+            document.getElementById('uploadModal').classList.add('flex');
+        }
+        function closeModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+            document.getElementById('uploadModal').classList.remove('flex');
+        }
+        function loadM3U() {
+            const url = document.getElementById('m3uUrlInput').value;
+            if(url) {
+                defaultChannels.unshift({
+                    id: Date.now(),
+                    name: "قناة مخصصة من الرابط",
+                    category: "all",
+                    logo: "📡",
+                    url: url
+                });
+                filterCategory('all');
+            }
+            closeModal();
+        }
+    </script>
+</body>
+</html>
