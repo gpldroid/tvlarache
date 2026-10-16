@@ -223,7 +223,16 @@
         // --- Global Variables ---
         let allChannels = [];
         let filteredChannels = [];
-        let favorites = JSON.parse(localStorage.getItem('larachetv_favorites')) || [];
+        function readStoredFavorites() {
+            try {
+                const stored = JSON.parse(localStorage.getItem('larachetv_favorites') || '[]');
+                return Array.isArray(stored) ? stored.filter(item => item && typeof item.id === 'string' && typeof item.name === 'string' && typeof item.url === 'string') : [];
+            } catch (error) {
+                console.warn('تعذر قراءة المفضلة المحفوظة:', error);
+                return [];
+            }
+        }
+        let favorites = readStoredFavorites();
         let currentPlayingChannel = null;
         let player;
         let hls;
@@ -256,26 +265,15 @@
             // Initialize category buttons
             renderCategoryButtons();
             
-            // Show footer pages links in sidebar on mobile
-            if (window.innerWidth <= 900) {
-                document.querySelector('.sidebar-footer-links').style.display = 'block';
-            }
-            
-            // Load default content
-            loadCountryChannels('ae'); // Default to UAE
-            
-            // Hide loader
-            setTimeout(() => {
-                document.getElementById('loader').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('loader').style.display = 'none';
-                }, 500);
-            }, 1000);
+            const footerLinks = document.querySelector('.sidebar-footer-links');
+            if (footerLinks) footerLinks.style.display = window.innerWidth <= 900 ? 'block' : 'none';
+            loadCountryChannels('ma');
         });
 
         // --- Theme Management ---
         function initTheme() {
-            const savedTheme = localStorage.getItem('larachetv_theme') || 'dark';
+            let savedTheme = 'dark';
+            try { savedTheme = localStorage.getItem('larachetv_theme') || 'dark'; } catch (_) {}
             const isLightTheme = savedTheme === 'light';
             
             if (isLightTheme) {
@@ -293,11 +291,11 @@
             if (isLightTheme) {
                 themeIcon.className = 'fas fa-moon';
                 themeText.textContent = 'وضع الليل';
-                localStorage.setItem('larachetv_theme', 'light');
+                try { localStorage.setItem('larachetv_theme', 'light'); } catch (_) {}
             } else {
                 themeIcon.className = 'fas fa-sun';
                 themeText.textContent = 'وضع النهار';
-                localStorage.setItem('larachetv_theme', 'dark');
+                try { localStorage.setItem('larachetv_theme', 'dark'); } catch (_) {}
             }
         }
 
@@ -314,7 +312,7 @@
                 
                 // Hide load more button when searching
                 if (searchTerm) {
-                    document.getElementById('loadMoreContainer').style.display = 'none';
+                    if (document.getElementById('loadMoreContainer')) document.getElementById('loadMoreContainer').style.display = 'none';
                 }
             });
             
@@ -325,7 +323,7 @@
                 
                 // Show load more button if there are more channels
                 if (filteredChannels.length > CHANNELS_PER_PAGE) {
-                    document.getElementById('loadMoreContainer').style.display = 'block';
+                    if (document.getElementById('loadMoreContainer')) document.getElementById('loadMoreContainer').style.display = 'block';
                 }
             });
             
@@ -369,11 +367,8 @@
             
             // Listen for window resize to show/hide footer links in sidebar
             window.addEventListener('resize', () => {
-                if (window.innerWidth <= 900) {
-                    document.querySelector('.sidebar-footer-links').style.display = 'block';
-                } else {
-                    document.querySelector('.sidebar-footer-links').style.display = 'none';
-                }
+                const footerLinks = document.querySelector('.sidebar-footer-links');
+                if (footerLinks) footerLinks.style.display = window.innerWidth <= 900 ? 'block' : 'none';
             });
         }
 
@@ -676,15 +671,10 @@
                 console.error('Error loading country:', err);
                 showErrorState('حدث خطأ في تحميل القنوات');
                 
-                // Fallback to sample data
-                allChannels = getSampleChannels(country.name);
-                filteredChannels = [...allChannels];
+                allChannels = [];
+                filteredChannels = [];
                 renderChannels();
-                
-                // Show load more button
-                if (filteredChannels.length > CHANNELS_PER_PAGE) {
-                    document.getElementById('loadMoreContainer').style.display = 'block';
-                }
+                showNotification('تعذر تحميل القنوات حالياً. تحقق من الاتصال ثم أعد المحاولة.');
             }
         }
 
@@ -772,9 +762,12 @@
                         isFavorite: false,
                         type: 'live'
                     };
-                } else if (line.startsWith('http')) {
-                    currentChannel.url = line;
-                    currentChannel.id = btoa(line).substring(0, 32);
+                } else if (/^https?:\/\//i.test(line)) {
+                    let streamUrl;
+                    try { streamUrl = new URL(line); } catch (_) { currentChannel = {}; return; }
+                    if (!['http:', 'https:'].includes(streamUrl.protocol)) { currentChannel = {}; return; }
+                    currentChannel.url = streamUrl.href;
+                    currentChannel.id = 'ch-' + Array.from(streamUrl.href).reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0, 7).toString(36);
                     
                     // Check if favorite
                     currentChannel.isFavorite = favorites.some(f => f.id === currentChannel.id);
@@ -836,60 +829,73 @@
 
         function renderChannels() {
             const grid = document.getElementById('grid');
-            
+            if (!grid) return;
             if (filteredChannels.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-search"></i>
-                        <p>لا توجد قنوات تطابق البحث</p>
-                    </div>
-                `;
-                document.getElementById('loadMoreContainer').style.display = 'none';
+                grid.replaceChildren();
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-search';
+                const message = document.createElement('p');
+                message.textContent = 'لا توجد قنوات تطابق البحث';
+                empty.append(icon, message);
+                grid.appendChild(empty);
+                updateLoadMoreButton();
                 return;
             }
-            
-            // Calculate start and end indices for current page
-            const startIndex = 0;
-            const endIndex = Math.min((currentPage + 1) * CHANNELS_PER_PAGE, filteredChannels.length);
-            
-            // Get channels for current page
-            const displayChannels = filteredChannels.slice(startIndex, endIndex);
-            
-            // Clear grid on first page, otherwise append
-            if (currentPage === 0) {
-                grid.innerHTML = '';
-            }
-            
-            displayChannels.forEach(channel => {
-                const card = document.createElement('div');
-                card.className = `channel-card ${channel.id === currentPlayingChannel?.id ? 'active' : ''}`;
-                card.innerHTML = `
-                    <i class="fas fa-star fav-icon ${channel.isFavorite ? 'active' : ''}" 
-                       onclick="toggleFavorite(event, '${channel.id}', 'live')"></i>
-                    <img src="${channel.logo}" 
-                         onerror="this.src='https://cdn-icons-png.flaticon.com/512/2718/2718224.png'"
-                         loading="lazy"
-                         alt="${channel.name}">
-                    <h4>${channel.name}</h4>
-                    ${channel.country ? `<div style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">${channel.country}</div>` : ''}
-                    <span class="quality-badge">${channel.quality}</span>
-                `;
-                
-                card.addEventListener('click', (e) => {
-                    if (!e.target.classList.contains('fav-icon')) {
-                        playChannel(channel);
-                    }
+            const startIndex = currentPage * CHANNELS_PER_PAGE;
+            const endIndex = Math.min(startIndex + CHANNELS_PER_PAGE, filteredChannels.length);
+            if (currentPage === 0) grid.replaceChildren();
+            filteredChannels.slice(startIndex, endIndex).forEach(channel => {
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'channel-card' + (channel.id === currentPlayingChannel?.id ? ' active' : '');
+                card.setAttribute('aria-label', 'تشغيل ' + String(channel.name || 'قناة'));
+                const fav = document.createElement('span');
+                fav.className = 'fas fa-star fav-icon' + (channel.isFavorite ? ' active' : '');
+                fav.setAttribute('role', 'button');
+                fav.setAttribute('tabindex', '0');
+                fav.setAttribute('aria-label', channel.isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة');
+                const toggle = event => {
+                    event.stopPropagation();
+                    toggleFavorite(event, channel.id, 'live');
+                };
+                fav.addEventListener('click', toggle);
+                fav.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(event); }
                 });
-                
+                const fallbackLogo = 'https://cdn-icons-png.flaticon.com/512/2718/2718224.png';
+                let logoUrl = fallbackLogo;
+                try {
+                    const parsedLogo = new URL(channel.logo || fallbackLogo, window.location.href);
+                    if (parsedLogo.protocol === 'https:' || parsedLogo.protocol === 'http:') logoUrl = parsedLogo.href;
+                } catch (_) {}
+                const logo = document.createElement('img');
+                logo.src = logoUrl;
+                logo.alt = String(channel.name || 'شعار القناة');
+                logo.loading = 'lazy';
+                logo.referrerPolicy = 'no-referrer';
+                logo.onerror = () => { logo.onerror = null; logo.src = fallbackLogo; };
+                const title = document.createElement('h4');
+                title.textContent = String(channel.name || 'قناة بدون اسم');
+                const country = document.createElement('div');
+                country.className = 'channel-country';
+                country.textContent = String(channel.country || '');
+                const quality = document.createElement('span');
+                quality.className = 'quality-badge';
+                quality.textContent = String(channel.quality || 'SD');
+                card.append(fav, logo, title);
+                if (country.textContent) card.appendChild(country);
+                card.appendChild(quality);
+                card.addEventListener('click', () => playChannel(channel));
                 grid.appendChild(card);
             });
-            
-            // Update load more button state
             updateLoadMoreButton();
         }
 
         function loadMoreChannels() {
             const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (!loadMoreBtn) return;
             
             // Show loading state
             loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
@@ -911,6 +917,7 @@
         function updateLoadMoreButton() {
             const loadMoreContainer = document.getElementById('loadMoreContainer');
             const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (!loadMoreContainer || !loadMoreBtn) return;
             
             const totalChannels = filteredChannels.length;
             const displayedChannels = Math.min((currentPage + 1) * CHANNELS_PER_PAGE, totalChannels);
@@ -993,7 +1000,8 @@
             icon.classList.toggle('active', item.isFavorite);
             
             // Save to localStorage
-            localStorage.setItem('larachetv_favorites', JSON.stringify(favorites));
+            try { localStorage.setItem('larachetv_favorites', JSON.stringify(favorites)); }
+            catch (error) { console.warn('تعذر حفظ المفضلة محلياً:', error); }
             
             // Update current favorite button if needed
             updateCurrentFavoriteButton();
@@ -1064,9 +1072,15 @@
         }
 
         function showFavorites() {
-            // This function would show favorites page
-            // Implement based on your needs
-            showNotification('صفحة المفضلة قيد التطوير');
+            currentCategory = 'Favorites';
+            currentPage = 0;
+            document.getElementById('sectionTitle').textContent = 'القنوات المفضلة';
+            filteredChannels = favorites.map(saved => {
+                const channel = allChannels.find(item => item.id === saved.id);
+                return channel ? { ...channel, isFavorite: true } : { ...saved, category: 'Favorites', country: '', quality: 'SD', isFavorite: true };
+            });
+            renderChannels();
+            if (window.innerWidth <= 900 && isSidebarOpen) closeSidebar();
         }
 
         // --- Footer Modal Functions ---
@@ -1076,6 +1090,10 @@
             const modal = document.getElementById('footerModal');
             const title = document.getElementById('footerModalTitle');
             const body = document.getElementById('footerModalBody');
+            if (!modal || !title || !body) {
+                showNotification('هذه الصفحة غير متاحة في هذه الواجهة');
+                return;
+            }
             
             // Set content
             title.innerHTML = `<i class="fas fa-${getPageIcon(page)}"></i> ${FOOTER_PAGES[page].title}`;
@@ -1212,12 +1230,25 @@
                 return;
             }
             
+            let playlistUrl;
+            try {
+                playlistUrl = new URL(url);
+                if (!['http:', 'https:'].includes(playlistUrl.protocol)) throw new Error('protocol');
+            } catch (_) {
+                showNotification('يرجى استخدام رابط HTTP أو HTTPS صالح');
+                return;
+            }
             try {
                 showNotification('جاري تحميل القنوات...');
-                const response = await fetch(url);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const response = await fetch(playlistUrl.href, { signal: controller.signal, redirect: 'error' });
+                clearTimeout(timeoutId);
                 if (!response.ok) throw new Error('الرابط غير صالح');
-                
+                const declaredLength = Number(response.headers.get('content-length') || 0);
+                if (declaredLength > 10 * 1024 * 1024) throw new Error('الملف أكبر من الحد المسموح');
                 const data = await response.text();
+                if (data.length > 10 * 1024 * 1024) throw new Error('الملف أكبر من الحد المسموح');
                 allChannels = parseM3U(data, 'custom', 'مخصص');
                 
                 document.getElementById('sectionTitle').textContent = 'قائمة مخصصة';
