@@ -671,12 +671,9 @@
                 }
             } catch (err) {
                 console.error('Error loading country:', err);
-                showErrorState('حدث خطأ في تحميل القنوات');
-                
                 allChannels = [];
                 filteredChannels = [];
-                renderChannels();
-                showNotification('تعذر تحميل القنوات حالياً. تحقق من الاتصال ثم أعد المحاولة.');
+                showErrorState('تعذر تحميل القنوات. تحقق من الاتصال ثم أعد المحاولة.');
             }
         }
 
@@ -1191,7 +1188,8 @@
                     </button>
                 </div>
             `;
-            document.getElementById('loadMoreContainer').style.display = 'none';
+            const loadMoreContainer = document.getElementById('loadMoreContainer');
+            if (loadMoreContainer) loadMoreContainer.style.display = 'none';
         }
 
         // --- Modal Functions ---
@@ -1243,6 +1241,7 @@
                 return;
             }
             try {
+                showingFavorites = false;
                 showNotification('جاري تحميل القنوات...');
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
